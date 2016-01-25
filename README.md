@@ -12,3 +12,5 @@ Collection of python scripts for collecting metrics for InfluxDB
 * **metrics-influxdb-mesos-master**: Mesos master metrics
 * **metrics-influxdb-mesos-agent**: Mesos agent metrics
 * **metrics-influxdb-mesos-tasks**: Resource usage metrics from cAdvisor tagged by information from Mesos
+
+All scripts read config files with names of the form _/usr/local/etc/influxdb-xx.conf_ which specify the database connection details. An example is included.

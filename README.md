@@ -1,2 +1,14 @@
 # InfluxDB-metrics-collectors
 Collection of python scripts for collecting metrics for InfluxDB
+
+* **metrics-influxdb-arc**: general ARC CE metrics
+* **metrics-influxdb-condor-general**: general HTCondor pool metrics
+* **metrics-influxdb-condor-jobs**: numbers of jobs by VO and schedd in different states
+* **metrics-influxdb-condor-multistartjobs**: numbers of jobs which have run more than once
+* **metrics-influxdb-condor-schedd**: number of shadow exits by state
+* **metrics-influxdb-fts3-active**: active transfers by VO and by schedd
+* **metrics-influxdb-fts3-http**: HTTP response code frequency and response duration
+* **metrics-influxdb-zookeeper**: ZooKeeper metrics
+* **metrics-influxdb-mesos-master**: Mesos master metrics
+* **metrics-influxdb-mesos-agent**: Mesos agent metrics
+* **metrics-influxdb-mesos-tasks**: Resource usage metrics from cAdvisor tagged by information from Mesos

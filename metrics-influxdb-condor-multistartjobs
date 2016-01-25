@@ -1,0 +1,53 @@
+#!/usr/bin/python
+
+import random
+import sys
+import classad
+import htcondor
+import requests
+from ConfigParser import SafeConfigParser
+
+# Read from config file
+parser = SafeConfigParser()
+try:
+   parser.read('/usr/local/etc/influxdb-htcondor.conf')
+   hostsInflux = parser.get('db', 'host')
+   database = parser.get('db', 'database')
+   username = parser.get('auth', 'username')
+   password = parser.get('auth', 'password')
+except:
+   raise NameError('Unable to read from config file')
+
+data = ''
+
+coll = htcondor.Collector()
+results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name"])
+for result in results:
+   host = result["Name"]
+   scheddAd = coll.locate(htcondor.DaemonTypes.Schedd, host)
+   schedd = htcondor.Schedd(scheddAd)
+   try:
+      ajobs = schedd.query('NumJobStarts > 1',["JobStatus"])
+   except:
+      print 'Unable to query schedd:',host,'but continuing anyway'
+
+   data += 'multijobstarts,schedd='+host+' value='+str(len(ajobs))+'\n'
+
+# Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
+# repeat until we have success
+hosts = hostsInflux.split(',')
+success = False
+while not success:
+   pick = random.randint(0,len(hosts)-1)
+   statuscode = 0
+   try:
+      r = requests.post('http://'+hosts[pick]+'/write?db='+database, auth=(username, password), data=data, timeout=40)
+      statuscode = r.status_code
+   except:
+      print 'ERROR: Problem connecting to',hosts[pick]
+   if statuscode == 204:
+      success = True
+   else:
+      hosts.remove(hosts[pick])
+      if len(hosts) == 0:
+         raise NameError('Unable to send metrics to InfluxDB')

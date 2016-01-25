@@ -8,6 +8,7 @@ Collection of python scripts for collecting metrics for InfluxDB
 * **metrics-influxdb-condor-schedd**: numbers of shadow exits by state
 * **metrics-influxdb-fts3-active**: active transfers by VO and by schedd
 * **metrics-influxdb-fts3-http**: HTTP response code frequency and response duration
+* **metrics-influxdb-squid**: squid metrics
 * **metrics-influxdb-zookeeper**: ZooKeeper metrics
 * **metrics-influxdb-mesos-master**: Mesos master metrics
 * **metrics-influxdb-mesos-agent**: Mesos agent metrics

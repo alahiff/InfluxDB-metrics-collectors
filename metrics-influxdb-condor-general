@@ -1,0 +1,85 @@
+#!/usr/bin/python
+
+import classad
+import htcondor
+import requests
+from ConfigParser import SafeConfigParser
+
+# Read from config file
+parser = SafeConfigParser()
+try:
+   parser.read('/usr/local/etc/influxdb-htcondor.conf')
+   hostsInflux = parser.get('db', 'host')
+   database = parser.get('db', 'database')
+   username = parser.get('auth', 'username')
+   password = parser.get('auth', 'password')
+except:
+   raise NameError('Unable to read from config file')
+
+coll = htcondor.Collector()
+
+# Number of collectors
+results = coll.query(htcondor.AdTypes.Collector, "true", ["Name"])
+numCollectors = len(results)
+data = 'NumCollectors value=' + str(numCollectors) + '\n'
+
+# Negotiator
+results = coll.query(htcondor.AdTypes.Negotiator, "true", ["Name", "LastNegotiationCycleDuration0"])
+numNegotiators = len(results)
+data += 'NumNegotiators value=' + str(numNegotiators) + '\n'
+
+for result in results:
+   data += 'NegotiatorRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["LastNegotiationCycleDuration0"]) + '\n'
+
+# Schedds
+results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name", "RecentDaemonCoreDutyCycle"])
+numSchedds = len(results)
+data += 'NumSchedds value=' + str(numSchedds) + '\n'
+
+for result in results:
+   data += 'ScheddRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["RecentDaemonCoreDutyCycle"]) + '\n'
+
+# Startds
+numStartds = 0
+numGoodStartds = 0
+memoryUsed = 0
+memoryFree = 0
+cpuUsed = 0
+cpuFree = 0
+
+results = coll.query(htcondor.AdTypes.Startd, "PartitionableSlot=?=True", ["NODE_IS_HEALTHY", "StartJobs", "TotalCpus", "Cpus", "TotalMemory", "Memory"])
+for result in results:
+   cpuUsed += result["TotalCpus"] - result["Cpus"]
+   cpuFree += result["Cpus"]
+   memoryUsed += result["TotalMemory"] - result["Memory"]
+   memoryFree += result["Memory"]
+   numStartds += 1
+   if "NODE_IS_HEALTHY" in result and "StartJobs" in result:
+      if result["NODE_IS_HEALTHY"] == True and result["StartJobs"] == True:
+         numGoodStartds += 1
+
+data += 'NumCpusUsed value=' + str(cpuUsed) + '\n'
+data += 'NumCpusFree value=' + str(cpuFree) + '\n'
+data += 'NumMemoryUsed value=' + str(memoryUsed) + '\n'
+data += 'NumMemoryFree value=' + str(memoryFree) + '\n'
+data += 'NumStartds value=' + str(numStartds) + '\n'
+data += 'NumGoodStartds value=' + str(numGoodStartds) + '\n'
+
+# Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
+# repeat until we have success
+hosts = hostsInflux.split(',')
+success = False
+while not success:
+   pick = random.randint(0,len(hosts)-1)
+   statuscode = 0
+   try:
+      r = requests.post('http://'+hosts[pick]+'/write?db='+database, auth=(username, password), data=data, timeout=40)
+      statuscode = r.status_code
+   except:
+      print 'ERROR: Problem connecting to',hosts[pick]
+   if statuscode == 204:
+      success = True
+   else:
+      hosts.remove(hosts[pick])
+      if len(hosts) == 0:
+         raise NameError('Unable to send metrics to InfluxDB')

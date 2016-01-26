@@ -1,0 +1,67 @@
+#!/usr/bin/python
+import random
+import sys
+import getopt
+import requests
+from ConfigParser import SafeConfigParser
+
+# Read from config file
+parser = SafeConfigParser()
+try:
+   parser.read('/usr/local/etc/influxdb-htcondor.conf')
+   hostsInflux = parser.get('db', 'host')
+   database = parser.get('db', 'database')
+   username = parser.get('auth', 'username')
+   password = parser.get('auth', 'password')
+except:
+   raise NameError('Unable to read from config file')
+
+try:
+   opts, args = getopt.getopt(sys.argv[1:],"c:n:v:ty:u:sl:sp:tm:dm:",["conf=","name=","value=","type=","units=","slope=","spoof=","tmax=","dmax="])
+except getopt.GetoptError:
+   print 'ERROR'
+   sys.exit(2)
+
+for opt, arg in opts:
+   if opt == '-h':
+      print 'test.py -i <inputfile> -o <outputfile>'
+      sys.exit()
+   elif opt in ("-n", "--name"):
+      name = arg
+   elif opt in ("-v", "--value"):
+      value = arg
+   elif opt in ("-t", "--type"):
+      type = arg
+   elif opt in ("-sp", "--spoof"):
+      spoof = arg
+
+if type == 'string':
+   exit(0)
+
+if 'int' in type:
+   value = value + "i"
+
+if ' ' in name:
+   name = name.replace(" ", "\\ ")
+
+data = name + ',host=' + spoof.split(':')[1] + ' value=' + value
+
+# Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
+# repeat until we have success
+hosts = hostsInflux.split(',')
+success = False
+while not success:
+   pick = random.randint(0,len(hosts)-1)
+   statuscode = 0
+   try:
+      r = requests.post('http://'+hosts[pick]+'/write?db='+database, auth=(username, password), data=data, timeout=40)
+      statuscode = r.status_code
+   except:
+      print 'ERROR: Problem connecting to',hosts[pick]
+   if statuscode == 204:
+      success = True
+   else:
+      hosts.remove(hosts[pick])
+      if len(hosts) == 0:
+         raise NameError('Unable to send metrics to InfluxDB')
+         

@@ -2,6 +2,7 @@
 Collection of python scripts for collecting metrics for InfluxDB
 
 * **metrics-influxdb-arc**: general ARC CE metrics
+* **metrics-influxdb-condor-gangliad**: replacement for gmetric to be used with condor_gangliad
 * **metrics-influxdb-condor-general**: general HTCondor pool metrics
 * **metrics-influxdb-condor-jobs**: numbers of jobs and cores by VO and schedd in different states
 * **metrics-influxdb-condor-multistartjobs**: numbers of jobs which have run more than once

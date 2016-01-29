@@ -25,12 +25,13 @@ numCollectors = len(results)
 data = 'NumCollectors value=' + str(numCollectors) + '\n'
 
 # Negotiator
-results = coll.query(htcondor.AdTypes.Negotiator, "true", ["Name", "LastNegotiationCycleDuration0"])
+results = coll.query(htcondor.AdTypes.Negotiator, "true", ["Name", "LastNegotiationCycleDuration0", "RecentDaemonCoreDutyCycle"])
 numNegotiators = len(results)
 data += 'NumNegotiators value=' + str(numNegotiators) + '\n'
 
 for result in results:
    data += 'NegotiatorRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["RecentDaemonCoreDutyCycle"]) + '\n'
+   data += 'LastNegotiationCycleDuration,host=' + result["Name"] + ' value=' + str(result["LastNegotiationCycleDuration0"]) + '\n'
 
 # Schedds
 results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name", "RecentDaemonCoreDutyCycle"])

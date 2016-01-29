@@ -30,7 +30,7 @@ numNegotiators = len(results)
 data += 'NumNegotiators value=' + str(numNegotiators) + '\n'
 
 for result in results:
-   data += 'NegotiatorRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["LastNegotiationCycleDuration0"]) + '\n'
+   data += 'NegotiatorRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["RecentDaemonCoreDutyCycle"]) + '\n'
 
 # Schedds
 results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name", "RecentDaemonCoreDutyCycle"])

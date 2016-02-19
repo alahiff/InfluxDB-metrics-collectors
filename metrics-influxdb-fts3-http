@@ -1,0 +1,83 @@
+#!/usr/bin/python
+
+import sys
+import re
+import httplib
+import socket
+from datetime import datetime, timedelta
+import requests
+from ConfigParser import SafeConfigParser
+from random import randint
+
+# Read from config file
+parser = SafeConfigParser()
+try:
+   parser.read('/usr/local/etc/influxdb-fts3.conf')
+   host = parser.get('db', 'host')
+   database = parser.get('db', 'database')
+   username = parser.get('auth', 'username')
+   password = parser.get('auth', 'password')
+except:
+   raise NameError('Unable to read from config file')
+
+hostname = socket.gethostname().split('.')[0]
+
+logfile='/var/log/httpd/fts3rest_access_log'
+
+timeformat='%d/%b/%Y:%H:%M'
+delta=timedelta(minutes=-1)
+now=datetime.now()
+then=now+delta
+timeString=then.strftime(timeformat)
+
+duration=0
+count=0
+count200=0
+count400=0
+count500=0
+
+f=open(logfile)
+for line in f:
+   if timeString in line:
+      pieces = line.split()
+      rc = int(pieces[8])
+      dur = int(pieces[10])
+      if rc >= 200 and rc < 300:
+         count200 += 1
+      elif rc >= 400 and rc < 500:
+         count400 += 1
+      elif rc >= 500 and rc < 600:
+         count500 += 1
+      count += 1
+      duration += dur
+f.close()
+
+data = ''
+
+data += 'http_response_status,hostname='+hostname+',response=2xx,instance=test value='+str(count200)+'\n'
+data += 'http_response_status,hostname='+hostname+',response=4xx,instance=test value='+str(count400)+'\n'
+data += 'http_response_status,hostname='+hostname+',response=5xx,instance=test value='+str(count500)+'\n'
+
+if count > 0:
+   averageDuration = duration/count
+   data += 'http_response_duration,hostname='+hostname+',instance=test value='+str(averageDuration)+'\n'
+
+# Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
+# repeat until we have success
+hosts = host.split(',')
+success = False
+while not success:
+   pick = randint(0,len(hosts)-1)
+   statuscode = 0
+   try:
+      r = requests.post('http://'+hosts[pick]+'/write?db='+database, auth=(username, password), data=data, timeout=40)
+      statuscode = r.status_code
+   except:
+      print 'ERROR: Problem connecting to',hosts[pick]
+   if statuscode == 204:
+      success = True
+   else:
+      hosts.remove(hosts[pick])
+      if len(hosts) == 0:
+         raise NameError('Unable to send metrics to InfluxDB')
+         

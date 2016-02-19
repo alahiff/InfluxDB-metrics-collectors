@@ -143,8 +143,6 @@ for vo in vosa:
          eff = jobsC[vo]/jobsW[vo]*100.0
       data += 'cpu-efficiency,vo='+vo+' value='+str(eff)+'\n'
 
-exit(1)
-
 # Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
 # repeat until we have success
 hosts = hostsInflux.split(',')

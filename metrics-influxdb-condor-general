@@ -34,12 +34,13 @@ for result in results:
    data += 'LastNegotiationCycleDuration,host=' + result["Name"] + ' value=' + str(result["LastNegotiationCycleDuration0"]) + '\n'
 
 # Schedds
-results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name", "RecentDaemonCoreDutyCycle"])
+results = coll.query(htcondor.AdTypes.Schedd, "true", ["Name", "RecentDaemonCoreDutyCycle", "Autoclusters"])
 numSchedds = len(results)
 data += 'NumSchedds value=' + str(numSchedds) + '\n'
 
 for result in results:
    data += 'ScheddRecentDaemonCoreDutyCycle,host=' + result["Name"] + ' value=' + str(result["RecentDaemonCoreDutyCycle"]) + '\n'
+   data += 'AutoClusters,host=' + result["Name"] + ' value=' + str(result["Autoclusters"]) + '\n'
 
 # Startds
 numStartds = 0
@@ -48,8 +49,11 @@ memoryUsed = 0
 memoryFree = 0
 cpuUsed = 0
 cpuFree = 0
+cpuUsedCloud = 0
+cpuFreeCloud = 0
+numStartdsPreemptableOnly = 0
 
-results = coll.query(htcondor.AdTypes.Startd, "PartitionableSlot=?=True", ["NODE_IS_HEALTHY", "StartJobs", "TotalCpus", "Cpus", "TotalMemory", "Memory"])
+results = coll.query(htcondor.AdTypes.Startd, "PartitionableSlot=?=True", ["NODE_IS_HEALTHY", "StartJobs", "TotalCpus", "Cpus", "TotalMemory", "Memory","Machine","PREEMPTABLE_ONLY"])
 for result in results:
    cpuUsed += result["TotalCpus"] - result["Cpus"]
    cpuFree += result["Cpus"]
@@ -60,12 +64,24 @@ for result in results:
       if result["NODE_IS_HEALTHY"] == True and result["StartJobs"] == True:
          numGoodStartds += 1
 
+   if "Machine" in result:
+      if "nubes" in result["Machine"]:
+         cpuUsedCloud += result["TotalCpus"] - result["Cpus"]
+         cpuFreeCloud += result["Cpus"]
+
+   if "PREEMPTABLE_ONLY" in result:
+      if result["PREEMPTABLE_ONLY"]:
+         numStartdsPreemptableOnly += 1
+
 data += 'NumCpusUsed value=' + str(cpuUsed) + '\n'
 data += 'NumCpusFree value=' + str(cpuFree) + '\n'
 data += 'NumMemoryUsed value=' + str(memoryUsed) + '\n'
 data += 'NumMemoryFree value=' + str(memoryFree) + '\n'
 data += 'NumStartds value=' + str(numStartds) + '\n'
 data += 'NumGoodStartds value=' + str(numGoodStartds) + '\n'
+data += 'NumCpusUsedCloud value=' + str(cpuUsedCloud) + '\n'
+data += 'NumCpusFreeCloud value=' + str(cpuFreeCloud) + '\n'
+data += 'NumStartdsPreemptableOnly value=' + str(numStartdsPreemptableOnly) + '\n'
 
 # Send to InfluxDB - if multiple hosts are defined, pick a random host. If this fails,
 # repeat until we have success

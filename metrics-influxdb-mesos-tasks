@@ -1,0 +1,144 @@
+#!/usr/bin/python
+
+import os.path
+import sys
+import socket
+import requests
+from ConfigParser import SafeConfigParser
+from random import randint
+from datetime import datetime
+from subprocess import Popen, PIPE
+
+# Exit if another instance of this script is already running
+sub_proc = Popen(['ps', 'aux'], shell=False, stdout=PIPE)
+sub_proc.stdout.readline()
+count = 0
+for line in sub_proc.stdout:
+    if 'metrics-influxdb-mesos-tasks' in line and 'python' in line:
+        count += 1
+if count > 1:
+    print 'Exiting - script is already running'
+    exit(1)
+
+# Read InfluxDB connection details from config file
+parser = SafeConfigParser()
+try:
+   parser.read('/usr/local/etc/influxdb-mesos-tasks.config')
+   host = parser.get('db', 'host')
+   database = parser.get('db', 'database')
+   username = parser.get('auth', 'username')
+   password = parser.get('auth', 'password')
+except:
+   raise NameError('Unable to read from config file')
+
+try:
+   stats = requests.get('http://localhost:8080/api/v1.2/docker/',timeout=10).json()
+except:
+   NameError('Unable to obtain cadvisor docker monitoring stats')
+
+try:
+   state = requests.get('http://localhost:5051/state.json',timeout=10).json()
+except:
+   raise NameError('Unable to obtain mesos state')
+
+hostname = socket.gethostname()
+
+tasks = {}
+
+for framework in state["frameworks"]:
+   for executor in framework["executors"]:
+      count = 0
+      for task in executor['tasks']:
+         labelstr = ''
+         if 'labels' in task:
+            labels = task['labels']
+            for label in labels:
+               if len(labelstr) > 0:
+                  labelstr += ';'
+               labelstr += label['key'] + ':' + label['value']
+         count += 1
+         info = {}
+         info['name'] = task['name']
+         info['id'] = task['id']
+         info['labels'] = labelstr
+         tasks[executor['container']] = info
+      if count > 1:
+         print 'WARNING: multiple tasks in single executor'
+
+data = ''
+tasksPerApp = {}
+
+for container in stats:
+   info = stats[container]
+   isMesos = 0
+   for alias in info['aliases']:
+      if 'mesos' in alias:
+         myAlias = alias
+         isMesos = 1
+   if isMesos == 1:
+      containerId = myAlias.split('.')[1]
+      if containerId in tasks:
+         info = tasks[containerId]
+         statistics = stats[container]['stats']
+
+         if info['name'] in tasksPerApp:
+            tasksPerApp[info['name']] += 1
+         else:
+            tasksPerApp[info['name']] = 1
+
+         basic = 'app=' + info['name'] + \
+                 ',id=' + info['id'] + \
+                 ',host=' + hostname
+         if len(info['labels']) > 0:
+            basic += ',labels=' + info['labels']
+
+         if 'NO_METRICS' not in basic:
+            # Limits
+            data += 'cpu_limit,' + basic + \
+                    ' value=' + str(stats[container]['spec']['cpu']['limit']) + '\n'
+            data += 'memory_limit,' + basic + \
+                    ' value=' + str(stats[container]['spec']['memory']['limit']) + '\n'
+
+            data += 'num_tasks,' + basic + ' value=1\n'
+
+            for stime in statistics:
+               p = '%Y-%m-%dT%H:%M:%S'
+               epoch = datetime(1970, 1, 1)
+               timestamp = "%d" % ((datetime.strptime(stime['timestamp'].split('.')[0], p) - epoch).total_seconds()*1e+9)
+
+               # Network
+               for type in ['rx_bytes', 'tx_bytes']:
+                  data += 'network_' + type + ',' + basic + \
+                          ' value=' + str(stime['network'][type]) + ' ' + timestamp+ '\n'
+
+               # Memory
+               for type in ['usage', 'working_set']:
+                  data += 'memory_' + type + ',' + basic + \
+                          ' value=' + str(stime['memory'][type]) + ' ' + timestamp + '\n'
+
+               # CPU usage
+               for type in ['total', 'system', 'user']:
+                  data += 'cpu_usage_' + type + ',' + basic + \
+                          ' value=' + str(stime['cpu']['usage'][type]) + ' ' + timestamp + '\n'
+
+               # CPU load
+               data += 'load_average,' + basic + \
+                       ' value=' + str(stime['cpu']['load_average']) + ' ' + timestamp + '\n'
+
+               # Custom metrics
+               if 'custom_metrics' in stime:
+                  metrics = stime['custom_metrics']
+                  for metric in metrics:
+                     if 'float_value' in stime['custom_metrics'][metric][0]:
+                        data += 'custom_metric,metric=' + metric + ',' + basic + \
+                                ' value=' + str(stime['custom_metrics'][metric][0]['float_value']) + ' ' + timestamp + '\n'
+                     if 'int_value' in stime['custom_metrics'][metric][0]:
+                        data += 'custom_metric,metric=' + metric + ',' + basic + \
+                                ' value=' + str(stime['custom_metrics'][metric][0]['int_value']) + ' ' + timestamp + '\n'
+
+# Send to InfluxDB
+try:
+    r = requests.post('http://'+host+'/write?db='+database, auth=(username, password), data=data, timeout=20)
+except:
+    raise NameError('Unable to send metrics to InfluxDB')
+    

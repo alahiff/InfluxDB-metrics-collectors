@@ -1,6 +1,6 @@
 # InfluxDB-metrics-collectors
 Collection of python scripts for collecting metrics for InfluxDB
-The scripts are meant to be executed by Telegraf. Each directory contains configuration for /etc/telegraf/telegraf.d/.
+The scripts are meant to be executed by Telegraf. Each directory contains configuration which should be placed in `/etc/telegraf/telegraf.d/`.
 
 Example setting up a database:
 ```

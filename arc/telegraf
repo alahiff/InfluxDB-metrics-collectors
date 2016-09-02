@@ -1,0 +1,3 @@
+User_Alias      TELEGRAFUSER = telegraf
+Cmnd_Alias      TELEGRAFRUN = /usr/local/bin/metrics-influxdb-arc
+TELEGRAFUSER    ALL = NOPASSWD: TELEGRAFRUN

@@ -1,0 +1,27 @@
+#!/usr/bin/python
+
+import socket
+import requests
+
+try:
+    result = requests.get('http://localhost:5050/master/redirect', timeout=10)
+except:
+    print 'CRITICAL: Unable to query the local Mesos master /master/redirect'
+    exit(2)
+
+if socket.gethostname() in result.url:
+    try:
+        result = requests.get('http://localhost:5050/roles.json', timeout=10)
+    except:
+        print 'Unable to get data from /roles.json endpoint'
+        sys.exit(1)
+
+    for role in result.json()['roles']:
+        name = role['name']
+        if name == "*":
+            name = 'other'
+        weight = str(role['weight'])
+        cpus = str(role['resources']['cpus'])
+        memory = str(role['resources']['mem'])
+        disk = str(role['resources']['disk'])
+        print 'role,name='+name+' weight='+weight+',cpus='+cpus+',memory='+memory+',disk='+disk

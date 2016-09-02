@@ -1,0 +1,4 @@
+User_Alias      TELEGRAFUSER = telegraf
+
+Cmnd_Alias      TELEGRAFCHECKS = /usr/local/bin/metrics-influxdb-squid
+TELEGRAFUSER    ALL = NOPASSWD: TELEGRAFCHECKS

@@ -5,7 +5,6 @@ import sys
 import socket
 import requests
 from datetime import datetime
-from subprocess import Popen, PIPE
 
 try:
    stats = requests.get('http://localhost:8080/api/v1.2/docker/',timeout=10).json()
@@ -72,10 +71,9 @@ for container in stats:
 
          if 'NO_METRICS' not in basic:
             # Limits
-            data += 'cpu_limit,' + basic + \
-                    ' value=' + str(stats[container]['spec']['cpu']['limit']) + '\n'
-            data += 'memory_limit,' + basic + \
-                    ' value=' + str(stats[container]['spec']['memory']['limit']) + '\n'
+            data += 'mesos_task_limits,' + basic + \
+                    ' cpu=' + str(stats[container]['spec']['cpu']['limit']) + \
+                    ',memory=' + str(stats[container]['spec']['memory']['limit']) + '\n'
 
             data += 'num_tasks,' + basic + ' value=1\n'
 
@@ -84,27 +82,16 @@ for container in stats:
                epoch = datetime(1970, 1, 1)
                timestamp = "%d" % ((datetime.strptime(stime['timestamp'].split('.')[0], p) - epoch).total_seconds()*1e+9)
 
-               # Network
-               data += 'rx_bytes,' + basic + \
-                       ' value=' + str(stime['network']['rx_bytes']) + ' ' + timestamp+ '\n'
-               data += 'tx_bytes,' + basic + \
-                       ' value=' + str(stime['network']['tx_bytes']) + ' ' + timestamp + '\n'
-
-               # Memory
-               data += 'memory_usage,' + basic + \
-                       ' value=' + str(stime['memory']['usage']) + ' ' + timestamp + '\n'
-               data += 'memory_working_set,' + basic + \
-                       ' value=' + str(stime['memory']['working_set']) + ' ' + timestamp + '\n'
-
-               # CPU
-               data += 'cpu_usage_total,' + basic + \
-                       ' value=' + str(stime['cpu']['usage']['total']) + ' ' + timestamp + '\n'
-               data += 'cpu_usage_system,' + basic + \
-                       ' value=' + str(stime['cpu']['usage']['system']) + ' ' + timestamp + '\n'
-               data += 'cpu_usage_user,' + basic + \
-                       ' value=' + str(stime['cpu']['usage']['user']) + ' ' + timestamp + '\n'
-               data += 'load_average,' + basic + \
-                       ' value=' + str(stime['cpu']['load_average']) + ' ' + timestamp + '\n'
+               # Network, memory & CPU
+               data += 'mesos_task_usage,' + basic + \
+                       ' rx_bytes=' + str(stime['network']['rx_bytes']) + \
+                       ',tx_bytes=' + str(stime['network']['tx_bytes']) + \
+                       ',memory_usage=' + str(stime['memory']['usage']) + \
+                       ',memory_working_set=' + str(stime['memory']['working_set']) + \
+                       ',cpu_usage_total=' + str(stime['cpu']['usage']['total']) + \
+                       ',cpu_usage_system=' + str(stime['cpu']['usage']['system']) + \
+                       ',cpu_usage_user=' + str(stime['cpu']['usage']['user']) + \
+                       ',load_average=' + str(stime['cpu']['load_average']) + ' ' + timestamp + '\n'
 
                # Custom metrics
                if 'custom_metrics' in stime:

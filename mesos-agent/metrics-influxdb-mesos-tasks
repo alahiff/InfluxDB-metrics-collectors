@@ -1,0 +1,120 @@
+#!/usr/bin/python
+
+import os.path
+import sys
+import socket
+import requests
+from datetime import datetime
+from subprocess import Popen, PIPE
+
+try:
+   stats = requests.get('http://localhost:8080/api/v1.2/docker/',timeout=10).json()
+except:
+   print 'Unable to obtain cadvisor docker monitoring stats'
+   sys.exit(1)
+
+try:
+   state = requests.get('http://localhost:5051/state.json',timeout=10).json()
+except:
+   print 'Unable to obtain mesos state'
+   sys.exit(1)
+
+hostname = socket.gethostname()
+
+tasks = {}
+
+for framework in state["frameworks"]:
+   for executor in framework["executors"]:
+      count = 0
+      for task in executor['tasks']:
+         labelstr = ''
+         if 'labels' in task:
+            labels = task['labels']
+            for label in labels:
+               if len(labelstr) > 0:
+                  labelstr += ';'
+               labelstr += label['key'] + ':' + label['value']
+         count += 1
+         info = {}
+         info['name'] = task['name']
+         info['id'] = task['id']
+         info['labels'] = labelstr
+         tasks[executor['container']] = info
+      if count > 1:
+         print 'WARNING: multiple tasks in single executor'
+
+data = ''
+tasksPerApp = {}
+
+for container in stats:
+   info = stats[container]
+   isMesos = 0
+   for alias in info['aliases']:
+      if 'mesos' in alias:
+         myAlias = alias
+         isMesos = 1
+   if isMesos == 1:
+      containerId = myAlias.split('.')[1]
+      if containerId in tasks:
+         info = tasks[containerId]
+         statistics = stats[container]['stats']
+
+         if info['name'] in tasksPerApp:
+            tasksPerApp[info['name']] += 1
+         else:
+            tasksPerApp[info['name']] = 1
+
+         basic = 'app=' + info['name'] + \
+                 ',id=' + info['id'] + \
+                 ',host=' + hostname
+         if len(info['labels']) > 0:
+            basic += ',labels=' + info['labels']
+
+         if 'NO_METRICS' not in basic:
+            # Limits
+            data += 'cpu_limit,' + basic + \
+                    ' value=' + str(stats[container]['spec']['cpu']['limit']) + '\n'
+            data += 'memory_limit,' + basic + \
+                    ' value=' + str(stats[container]['spec']['memory']['limit']) + '\n'
+
+            data += 'num_tasks,' + basic + ' value=1\n'
+
+            for stime in statistics:
+               p = '%Y-%m-%dT%H:%M:%S'
+               epoch = datetime(1970, 1, 1)
+               timestamp = "%d" % ((datetime.strptime(stime['timestamp'].split('.')[0], p) - epoch).total_seconds()*1e+9)
+
+               # Network
+               data += 'rx_bytes,' + basic + \
+                       ' value=' + str(stime['network']['rx_bytes']) + ' ' + timestamp+ '\n'
+               data += 'tx_bytes,' + basic + \
+                       ' value=' + str(stime['network']['tx_bytes']) + ' ' + timestamp + '\n'
+
+               # Memory
+               data += 'memory_usage,' + basic + \
+                       ' value=' + str(stime['memory']['usage']) + ' ' + timestamp + '\n'
+               data += 'memory_working_set,' + basic + \
+                       ' value=' + str(stime['memory']['working_set']) + ' ' + timestamp + '\n'
+
+               # CPU
+               data += 'cpu_usage_total,' + basic + \
+                       ' value=' + str(stime['cpu']['usage']['total']) + ' ' + timestamp + '\n'
+               data += 'cpu_usage_system,' + basic + \
+                       ' value=' + str(stime['cpu']['usage']['system']) + ' ' + timestamp + '\n'
+               data += 'cpu_usage_user,' + basic + \
+                       ' value=' + str(stime['cpu']['usage']['user']) + ' ' + timestamp + '\n'
+               data += 'load_average,' + basic + \
+                       ' value=' + str(stime['cpu']['load_average']) + ' ' + timestamp + '\n'
+
+               # Custom metrics
+               if 'custom_metrics' in stime:
+                  metrics = stime['custom_metrics']
+                  for metric in metrics:
+                     if 'float_value' in stime['custom_metrics'][metric][0]:
+                        data += 'custom_metric,metric=' + metric + ',' + basic + \
+                                ' value=' + str(stime['custom_metrics'][metric][0]['float_value']) + ' ' + timestamp + '\n'
+                     if 'int_value' in stime['custom_metrics'][metric][0]:
+                        data += 'custom_metric,metric=' + metric + ',' + basic + \
+                                ' value=' + str(stime['custom_metrics'][metric][0]['int_value']) + ' ' + timestamp + '\n'
+
+print data

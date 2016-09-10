@@ -83,30 +83,42 @@ for container in stats:
                epoch = datetime(1970, 1, 1)
                timestamp = "%d" % ((datetime.strptime(stime['timestamp'].split('.')[0], p) - epoch).total_seconds()*1e+9)
 
-               # Disk I/O, network, memory & CPU
-               data += 'mesos_task_usage,' + basic + \
-                       ' diskio_serviced_total=' + str(stime['diskio']['io_serviced'][0]['stats']['Total']) + \
-                       ',diskio_serviced_read=' + str(stime['diskio']['io_serviced'][0]['stats']['Read']) + \
-                       ',diskio_serviced_write=' + str(stime['diskio']['io_serviced'][0]['stats']['Write']) + \
-                       ',diskio_service_bytes_total=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Total']) + \
-                       ',diskio_service_bytes_read=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Read']) + \
-                       ',diskio_service_bytes_write=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Write']) + \
-                       ',rx_bytes=' + str(stime['network']['rx_bytes']) + \
+               # Disk io
+               data += 'diskio,' + basic + \
+                       ' serviced_total=' + str(stime['diskio']['io_serviced'][0]['stats']['Total']) + \
+                       ',serviced_read=' + str(stime['diskio']['io_serviced'][0]['stats']['Read']) + \
+                       ',serviced_write=' + str(stime['diskio']['io_serviced'][0]['stats']['Write']) + \
+                       ',serviced_sync=' + str(stime['diskio']['io_serviced'][0]['stats']['Sync']) + \
+                       ',serviced_async=' + str(stime['diskio']['io_serviced'][0]['stats']['Async']) + \
+                       ',service_bytes_total=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Total']) + \
+                       ',service_bytes_read=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Read']) + \
+                       ',service_bytes_write=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Write']) + \
+                       ',service_bytes_sync=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Sync']) + \
+                       ',service_bytes_async=' + str(stime['diskio']['io_service_bytes'][0]['stats']['Async']) + ' ' + timestamp + '\n'
+
+               # Network
+               data += 'net,' + basic + \
+                       ' rx_bytes=' + str(stime['network']['rx_bytes']) + \
                        ',rx_packets=' + str(stime['network']['rx_packets']) + \
                        ',rx_errors=' + str(stime['network']['rx_errors']) + \
                        ',rx_dropped=' + str(stime['network']['rx_dropped']) + \
                        ',tx_bytes=' + str(stime['network']['tx_bytes']) + \
                        ',tx_packets=' + str(stime['network']['tx_packets']) + \
                        ',tx_errors=' + str(stime['network']['tx_errors']) + \
-                       ',tx_dropped=' + str(stime['network']['tx_dropped']) + \
-                       ',memory_usage=' + str(stime['memory']['usage']) + \
-                       ',memory_cache=' + str(stime['memory']['cache']) + \
-                       ',memory_rss=' + str(stime['memory']['rss']) + \
-                       ',memory_working_set=' + str(stime['memory']['working_set']) + \
-                       ',cpu_usage_total=' + str(stime['cpu']['usage']['total']) + \
-                       ',cpu_usage_system=' + str(stime['cpu']['usage']['system']) + \
-                       ',cpu_usage_user=' + str(stime['cpu']['usage']['user']) + \
-                       ',load_average=' + str(stime['cpu']['load_average']) + ' ' + timestamp + '\n'
+                       ',tx_dropped=' + str(stime['network']['tx_dropped']) + ' ' + timestamp + '\n'
+
+               # Memory
+               data += 'memory,' + basic + \
+                       ' usage=' + str(stime['memory']['usage']) + \
+                       ',cache=' + str(stime['memory']['cache']) + \
+                       ',rss=' + str(stime['memory']['rss']) + \
+                       ',working_set=' + str(stime['memory']['working_set']) + ' ' + timestamp + '\n'
+
+               # CPU
+               data += 'cpu,' + basic + \
+                       ' total=' + str(stime['cpu']['usage']['total']) + \
+                       ',system=' + str(stime['cpu']['usage']['system']) + \
+                       ',user=' + str(stime['cpu']['usage']['user']) + ' ' + timestamp + '\n'
 
                # Custom metrics
                if 'custom_metrics' in stime:

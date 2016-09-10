@@ -73,7 +73,8 @@ for container in stats:
             # Limits
             data += 'mesos_task_limits,' + basic + \
                     ' cpu=' + str(stats[container]['spec']['cpu']['limit']) + \
-                    ',memory=' + str(stats[container]['spec']['memory']['limit']) + '\n'
+                    ',memory=' + str(stats[container]['spec']['memory']['limit']) + \
+                    ',swap=' + str(stats[container]['spec']['memory']['swap_limit']) + '\n'
 
             data += 'num_tasks,' + basic + ' value=1\n'
 

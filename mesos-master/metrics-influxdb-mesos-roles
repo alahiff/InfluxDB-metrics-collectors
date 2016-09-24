@@ -20,8 +20,4 @@ if socket.gethostname() in result.url:
         name = role['name']
         if name == "*":
             name = 'other'
-        weight = str(role['weight'])
-        cpus = str(role['resources']['cpus'])
-        memory = str(role['resources']['mem'])
-        disk = str(role['resources']['disk'])
-        print 'role,name='+name+' weight='+weight+',cpus='+cpus+',memory='+memory+',disk='+disk
+        print 'role,name=%s weight=%f,cpus=%d,memory=%d,disk=%d' % (name, role['weight'], role['resources']['cpus'], role['resources']['mem'], role['resources']['disk'])
